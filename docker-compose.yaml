@@ -1,0 +1,20 @@
+services:
+  cuopt-server:
+    image: nvcr.io/nvidia/cuopt/cuopt:24.11
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=1
+      - CUOPT_CHECK_CLIENT=False
+      - CUOPT_RETURN_PERF_TIMES=True
+  cuopt-client:
+    image: nvcr.io/nvidia/pytorch:25.01-py3
+    env_file:
+      - .env
+    ports:
+      - 8888:8888
+    working_dir: /workspace
+    volumes:
+      - type: bind
+        source: workspace
+        target: /workspace
+    command: jupyter lab --ServerApp.ip=0.0.0.0 --ServerApp.port=8888 --ServerApp.allow_root=True --ServerApp.token='' --ServerApp.password='' --no-browser
