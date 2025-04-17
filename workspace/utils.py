@@ -13,6 +13,12 @@ from urllib3.util.retry import Retry
 
 # Create a custom formatter that doesn't add newlines
 class SingleLineFormatter(logging.Formatter):
+    """
+    Custom log formatter that replaces newlines with spaces and adds a carriage return.
+    
+    This formatter is designed to work well in Jupyter notebooks where standard
+    logging with newlines can create excessive vertical space.
+    """
     def format(self, record):
         result = super().format(record)
         return result.replace("\n", " ") + "\r"
@@ -61,19 +67,27 @@ def get_optimized_routes(
     request_delay: float = 1.1,
 ) -> Dict[str, Any]:
     """
-    Load generator function for route optimization requests
-
+    Send optimization request to NVIDIA API and poll for completion.
+    
+    This function handles both synchronous and asynchronous responses from the API.
+    If the API returns a 202 status code (Accepted), it will automatically poll
+    for completion using the request ID provided in the response headers.
+    
     Args:
         url: Base URL for the request
-        payload: Request payload
-        headers: Request headers
+        payload: Request payload (JSON-serializable dictionary)
+        headers: Request headers (defaults to standard JSON content type)
         timeout: Request timeout in seconds
         max_retries: Maximum number of retries for failed requests
-        backoff_factor: Backoff factor between retries
-        request_delay: Delay between requests in seconds
+        backoff_factor: Backoff factor between retries (in seconds)
+        request_delay: Delay between requests in seconds (used for rate limiting)
 
     Returns:
-        JSON response from the server
+        Dict[str, Any]: JSON response from the server after successful completion
+        
+    Raises:
+        requests.exceptions.HTTPError: If the API returns an error status code
+        Exception: If polling ends with an unexpected status code
     """
     if not headers:
         headers = {"accept": "application/json", "content-type": "application/json"}
@@ -171,17 +185,22 @@ def load_generator(
     **kwargs,
 ) -> List[Dict[str, Any]]:
     """
-    Generate load by executing multiple requests concurrently
-
+    Generate load by executing multiple requests concurrently.
+    
+    This function creates a thread pool and submits multiple requests to test
+    the performance and reliability of the API. It randomly selects payloads
+    from the provided list for each request.
+    
     Args:
         num_requests: Total number of requests to make
-        concurrency: Maximum number of concurrent requests
-        url: Target URL
-        payloads: List of request payloads to use
-        **kwargs: Additional arguments to pass to get_optimized_routes
+        concurrency: Maximum number of concurrent requests (thread pool size)
+        url: Target API URL
+        payloads: List of request payloads to randomly select from
+        **kwargs: Additional arguments passed directly to get_optimized_routes
+                 (e.g., timeout, max_retries, etc.)
 
     Returns:
-        List of responses from all successful requests
+        List[Dict[str, Any]]: List of JSON responses from all successful requests
     """
     results = []
     logger.info(
@@ -219,6 +238,23 @@ def load_generator(
 
 
 def create_from_file(file_path, is_pdp=False):
+    """
+    Parse optimization problem data from a text file into a pandas DataFrame.
+    
+    This function reads from standard CVRP or PDP format files and converts
+    the data into a structured DataFrame for further processing.
+    
+    Args:
+        file_path: Path to the input file containing problem data
+        is_pdp: Whether the file is in Pickup and Delivery Problem (PDP) format.
+                If False, assumes Capacitated Vehicle Routing Problem (CVRP) format.
+                
+    Returns:
+        Tuple containing:
+        - pandas.DataFrame: Node data with coordinates, time windows, etc.
+        - int: Vehicle capacity
+        - int: Number of vehicles
+    """
     node_list = []
     with open(file_path, "rt") as f:
         count = 1
