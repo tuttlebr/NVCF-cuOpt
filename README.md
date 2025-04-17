@@ -61,3 +61,17 @@ docker push nvcr.io/{NGC_ORG_ID}/cuopt:24.11
    - Max Concurrency: _1_
 1. Review Deployment
 1. Deploy Version
+
+## Launch Jupyterlab
+
+1. create `.env` file:
+
+```txt
+NGC_API_KEY=nvapi-*
+```
+
+1. Launch notebook:
+
+```sh
+docker compose up
+```
